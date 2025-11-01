@@ -5,7 +5,7 @@ class MessageHandler {
     this.userStates = {}; // Almacenar estado de cada usuario
   }
 
-  async handleIncomingMessage(message) {
+  async handleIncomingMessage(message, senderInfo) {
     try {
       if (message?.type === 'text') {
         const incomingMessage = message.text.body.toLowerCase().trim();
@@ -15,7 +15,7 @@ class MessageHandler {
         
         // Verificar si es un saludo inicial
         if (this.isGreeting(incomingMessage)) {
-          await this.sendWelcomeMessage(userId, message.id);
+          await this.sendWelcomeMessage(userId, message.id, senderInfo);
           // await this.sendWelcomeMenu(userId);
           this.userStates[userId] = 'menu'; // Marcar que está en el menú
         } 
@@ -41,13 +41,17 @@ class MessageHandler {
     return greetings.includes(message);
   }
 
-  async sendWelcomeMessage(to, messageId) {
-    try {
-      const welcomeMessage = `Hola, Bienvenido a tu tienda de Rick and Morty en línea. ¿En qué puedo ayudarte hoy?`;
+  getSenderName(senderInfo){
+    return senderInfo.profile?.name || senderInfo.wa_id || ""
+  }
+  async sendWelcomeMessage(to, messageId, senderInfo) {
+    // try {
+      const name= this.getSenderName(senderInfo)
+      const welcomeMessage = `Hola ${name}, Bienvenido a tu tienda de Rick and Morty en línea.\n¿En qué puedo ayudarte hoy?`;
       await whatsappService.sendMessage(to, welcomeMessage, messageId);
-    } catch (error) {
-      console.error('Error sending welcome message:', error);
-    }
+    // } catch (error) {
+    //   console.error('Error sending welcome message:', error);
+    // }
   }
 
 //   async sendWelcomeMenu(to) {
