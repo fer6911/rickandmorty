@@ -43,9 +43,9 @@ class WhatsAppService {
     }
   }
 
-  async sendInteractiveButtons(to, BodyText, buttons){
+  async sendInteractiveButtons(to, BodyText, buttons) {
     try {
-       await axios({
+      await axios({
         method: 'POST',
         url: `https://graph.facebook.com/${config.API_VERSION}/${config.BUSINESS_PHONE}/messages`,
         headers: {
@@ -57,7 +57,7 @@ class WhatsAppService {
           type: 'interactive',
           interactive: {
             type: 'button',
-            body: {text: BodyText},
+            body: { text: BodyText },
             action: {
               buttons: buttons
             }
@@ -65,9 +65,53 @@ class WhatsAppService {
         },
       });
     } catch (error) {
-     console.log(error);
-      
+      console.log(error);
+
     }
+  }
+
+  async sendMediaMessage(to, type, mediaUrl, caption) {
+    const mediaObject = {};
+
+    switch (type) {
+      case 'image':
+        mediaObject.image = { link: mediaUrl, caption: caption };
+        break;
+      case 'audio':
+        mediaObject.audio = { link: mediaUrl };
+        break;
+      case 'video':
+        mediaObject.video = { link: mediaUrl, caption: caption };
+        break;
+      case 'document':
+        mediaObject.document = { link: mediaUrl, caption: caption, filename: 'medpet-file.pdf' };
+        break;
+      default:
+        throw new Error('Not Supported Media Type');
+    }
+
+    // const data = {
+    //   messaging_product: 'whatsapp',
+    //   recipient_type: 'individual',
+    //   to,
+    //   type: type,
+    //   ...mediaObject,
+    // };
+
+    await axios({
+      method: 'POST',
+      url: `https://graph.facebook.com/${config.API_VERSION}/${config.BUSINESS_PHONE}/messages`,
+      headers: {
+        Authorization: `Bearer ${config.API_TOKEN}`,
+      },
+      data: {
+        messaging_product: 'whatsapp',
+        to,
+        type: type,
+        ...mediaObject,
+      },
+    });
+    // await sendToWhatsApp(data);
   }
 }
 

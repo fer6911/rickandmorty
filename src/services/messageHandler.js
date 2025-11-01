@@ -9,25 +9,40 @@ class MessageHandler {
     try {
       if (message?.type === 'text') {
         const incomingMessage = message.text.body.toLowerCase().trim();
+         this.mediaFiles = {
+      'audio': {
+        url: 'https://s3.amazonaws.com/gndx.dev/medpet-audio.aac',
+        caption: 'Bienvenida',
+        type: 'audio'
+      },
+      'imagen': {
+        url: 'https://s3.amazonaws.com/gndx.dev/medpet-imagen.png',
+        caption: '¡Esto es una Imagen!',
+        type: 'image'
+      },
+      'video': {
+        url: 'https://s3.amazonaws.com/gndx.dev/medpet-video.mp4',
+        caption: '¡Esto es un video!',
+        type: 'video'
+      },
+      'documento': {
+        url: 'https://s3.amazonaws.com/gndx.dev/medpet-file.pdf',
+        caption: '¡Esto es un PDF!',
+        type: 'document'
+      }
+    };
         const userId = message.from;
-
-        console.log('Mensaje recibido:', incomingMessage, 'de:', userId);
 
         // Verificar si es un saludo inicial
         if (this.isGreeting(incomingMessage)) {
           await this.sendWelcomeMessage(userId, message.id, senderInfo);
-          // await this.sendWelcomeMenu(userId);
-          // this.userStates[userId] = 'menu'; // Marcar que está en el menú
-
-          //Muestra el menu
-          await this.sendWelcomeMenu(message.from)
+          await this.sendWelcomeMenu(message.from);
+        } 
+        // Verificar si el mensaje es un tipo de media
+        else if (this.mediaFiles[incomingMessage]) {
+          await this.sendMedia(userId, incomingMessage);
         }
-        // Verificar si el usuario está en el menú y selecciona una opción
-        // else if (this.userStates[userId] === 'menu') {
-        //   await this.handleMenuOption(userId, incomingMessage, message.id);
-        // }
         // Respuesta por defecto
-
         else {
           const response = `Echo: ${message.text.body}`;
           await whatsappService.sendMessage(userId, response, message.id);
@@ -35,9 +50,9 @@ class MessageHandler {
 
         await whatsappService.markAsRead(message.id);
       } else if (message?.type === 'interactive') {
-        const option = message?.interactive?.button_reply?.title.toLowerCase().trim
+        const option = message?.interactive?.button_reply?.title.toLowerCase().trim();
         await this.handleMenuOption(message.from, option, message.id);
-        await whatsappService.markAsRead(message.id)
+        await whatsappService.markAsRead(message.id);
       }
     } catch (error) {
       console.error('Error handling message:', error);
@@ -63,16 +78,19 @@ class MessageHandler {
   }
 
   async sendWelcomeMenu(to) {
-    const menuMessage = "Elige una Opción"
+     const menuMessage = "Elige una Opción";
     const buttons = [
       {
-        type: 'reply', reply: { id: 'option_1', title: 'Agendar - Comprar' }
+        type: 'reply',
+        reply: { id: 'option_1', title: 'Agendar - Comprar' }
       },
       {
-        type: 'reply', reply: { id: 'option_2', title: 'Consultar' }
+        type: 'reply',
+        reply: { id: 'option_2', title: 'Consultar' }
       },
       {
-        type: 'reply', reply: { id: 'option_3', title: 'Ubicación' }
+        type: 'reply',
+        reply: { id: 'option_3', title: 'Ubicación' }
       }
     ];
 
@@ -80,21 +98,20 @@ class MessageHandler {
   }
 
 
-  async handleMenuOption(to, option, messageId){
+  async handleMenuOption(to, option, messageId) {
     let response;
-    switch (option) {
-      case 'Agendar - Comprar':
-        // this.appointmentState[to] = { step: 'name' }
+    const optionLower = option.toLowerCase().trim();
+    
+    switch (optionLower) {
+      case 'agendar - comprar':
         response = "Por favor, ingresa tu nombre:";
         break;
-      case 'Consultar':
-        // this.assistandState[to] = { step: 'question' };
+      case 'consultar':
         response = "Realiza tu consulta";
-        break
-      case 'Ubicación': 
-       response = 'Te esperamos en nuestra sucursal.';
-      //  await this.sendLocation(to);
-       break
+        break;
+      case 'ubicación':
+        response = 'Te esperamos en nuestra sucursal.';
+        break;
       // case 'option_1':
       //   this.appointmentState[to] = { step: 'name' }
       //   response = "Por favor, ingresa tu nombre:";
@@ -107,10 +124,22 @@ class MessageHandler {
       //  response = 'Te esperamos en nuestra sucursal.';
       //  await this.sendLocation(to);
       //  break
-      default: 
-       response = "Lo siento, no entendí tu selección, Por Favor, elige una de las opciones del menú."
+      default:
+        response = "Lo siento, no entendí tu selección, Por Favor, elige una de las opciones del menú."
     }
     await whatsappService.sendMessage(to, response, messageId);
+  }
+
+   async sendMedia(to, mediaType) {
+    const media = this.mediaFiles[mediaType];
+    
+    if (!media) {
+      await whatsappService.sendMessage(to, 'Tipo de media no encontrado');
+      return;
+    }
+
+    console.log(`Enviando ${mediaType} a ${to}`);
+    await whatsappService.sendMediaMessage(to, media.type, media.url, media.caption);
   }
 
   //   async sendWelcomeMenu(to) {
