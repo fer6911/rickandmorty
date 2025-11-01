@@ -17,13 +17,17 @@ class MessageHandler {
         if (this.isGreeting(incomingMessage)) {
           await this.sendWelcomeMessage(userId, message.id, senderInfo);
           // await this.sendWelcomeMenu(userId);
-          this.userStates[userId] = 'menu'; // Marcar que está en el menú
+          // this.userStates[userId] = 'menu'; // Marcar que está en el menú
+
+          //Muestra el menu
+          await this.sendWelcomeMenu(message.from)
         } 
         // Verificar si el usuario está en el menú y selecciona una opción
         // else if (this.userStates[userId] === 'menu') {
         //   await this.handleMenuOption(userId, incomingMessage, message.id);
         // }
         // Respuesta por defecto
+
         else {
           const response = `Echo: ${message.text.body}`;
           await whatsappService.sendMessage(userId, response, message.id);
@@ -52,6 +56,23 @@ class MessageHandler {
     // } catch (error) {
     //   console.error('Error sending welcome message:', error);
     // }
+  }
+
+  async sendWelcomeMenu(to){
+    const menuMessage = "Elige una Opción"
+    const buttons = [
+      {
+        type: 'reply', reply: { id: 'option_1', title: 'Agendar - Comprar' }
+      },
+      {
+        type: 'reply', reply: { id: 'option_2', title: 'Consultar'}
+      },
+      {
+        type: 'reply', reply: { id: 'option_3', title: 'Ubicación'}
+      }
+    ];
+
+    await whatsappService.sendInteractiveButtons(to, menuMessage, buttons);
   }
 
 //   async sendWelcomeMenu(to) {
