@@ -1,4 +1,5 @@
 import whatsappService from './whatsappService.js';
+import appendToSheet from './httpRequest/googleSheetsServices.js';
 
 class MessageHandler {
   constructor() {
@@ -45,8 +46,6 @@ class MessageHandler {
       }
       // Flujo de citas - PASAR message.id AQUÍ
       else if (this.appointmentState[message.from]) {
-        console.log('entro despues del nombre');
-        
         await this.handleAppointmentFlow(message.from, incomingMessage, message.id);
       }
       // Respuesta por defecto
@@ -159,11 +158,7 @@ class MessageHandler {
       appointment.reason,
       new Date().toISOString()
     ]
-
-    console.log(userData);
-    
-
-    // appendToSheet(userData);
+    appendToSheet(userData);
 
     return `Gracias por agendar tu cita. 
     Resumen de tu cita:
