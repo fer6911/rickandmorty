@@ -2,51 +2,58 @@ import whatsappService from './whatsappService.js';
 
 class MessageHandler {
   constructor() {
-    this.userStates = {}; // Almacenar estado de cada usuario
+    this.appointmentState = {};
   }
 
   async handleIncomingMessage(message, senderInfo) {
     try {
       if (message?.type === 'text') {
         const incomingMessage = message.text.body.toLowerCase().trim();
-         this.mediaFiles = {
-      'audio': {
-        url: 'https://s3.amazonaws.com/gndx.dev/medpet-audio.aac',
-        caption: 'Bienvenida',
-        type: 'audio'
-      },
-      'imagen': {
-        url: 'https://s3.amazonaws.com/gndx.dev/medpet-imagen.png',
-        caption: '¡Esto es una Imagen!',
-        type: 'image'
-      },
-      'video': {
-        url: 'https://s3.amazonaws.com/gndx.dev/medpet-video.mp4',
-        caption: '¡Esto es un video!',
-        type: 'video'
-      },
-      'documento': {
-        url: 'https://s3.amazonaws.com/gndx.dev/medpet-file.pdf',
-        caption: '¡Esto es un PDF!',
-        type: 'document'
-      }
-    };
+        this.mediaFiles = {
+          'audio': {
+            url: 'https://s3.amazonaws.com/gndx.dev/medpet-audio.aac',
+            caption: 'Bienvenida',
+            type: 'audio'
+          },
+          'imagen': {
+            url: 'https://s3.amazonaws.com/gndx.dev/medpet-imagen.png',
+            caption: '¡Esto es una Imagen!',
+            type: 'image'
+          },
+          'video': {
+            url: 'https://s3.amazonaws.com/gndx.dev/medpet-video.mp4',
+            caption: '¡Esto es un video!',
+            type: 'video'
+          },
+          'documento': {
+            url: 'https://s3.amazonaws.com/gndx.dev/medpet-file.pdf',
+            caption: '¡Esto es un PDF!',
+            type: 'document'
+          }
+        };
         const userId = message.from;
 
+
         // Verificar si es un saludo inicial
-        if (this.isGreeting(incomingMessage)) {
-          await this.sendWelcomeMessage(userId, message.id, senderInfo);
-          await this.sendWelcomeMenu(message.from);
-        } 
-        // Verificar si el mensaje es un tipo de media
-        else if (this.mediaFiles[incomingMessage]) {
-          await this.sendMedia(userId, incomingMessage);
-        }
-        // Respuesta por defecto
-        else {
-          const response = `Echo: ${message.text.body}`;
-          await whatsappService.sendMessage(userId, response, message.id);
-        }
+      if (this.isGreeting(incomingMessage)) {
+        await this.sendWelcomeMessage(userId, message.id, senderInfo);
+        await this.sendWelcomeMenu(message.from);
+      }
+      // Verificar si el mensaje es un tipo de media
+      else if (this.mediaFiles[incomingMessage]) {
+        await this.sendMedia(userId, incomingMessage);
+      }
+      // Flujo de citas - PASAR message.id AQUÍ
+      else if (this.appointmentState[message.from]) {
+        console.log('entro despues del nombre');
+        
+        await this.handleAppointmentFlow(message.from, incomingMessage, message.id);
+      }
+      // Respuesta por defecto
+      else {
+        const response = `Echo: ${message.text.body}`;
+        await whatsappService.sendMessage(userId, response, message.id);
+      }
 
         await whatsappService.markAsRead(message.id);
       } else if (message?.type === 'interactive') {
@@ -78,19 +85,16 @@ class MessageHandler {
   }
 
   async sendWelcomeMenu(to) {
-     const menuMessage = "Elige una Opción";
+    const menuMessage = "Elige una Opción"
     const buttons = [
       {
-        type: 'reply',
-        reply: { id: 'option_1', title: 'Agendar - Comprar' }
+        type: 'reply', reply: { id: 'option_1', title: 'Agendar' }
       },
       {
-        type: 'reply',
-        reply: { id: 'option_2', title: 'Consultar' }
+        type: 'reply', reply: { id: 'option_2', title: 'Consultar' }
       },
       {
-        type: 'reply',
-        reply: { id: 'option_3', title: 'Ubicación' }
+        type: 'reply', reply: { id: 'option_3', title: 'Ubicación' }
       }
     ];
 
@@ -101,17 +105,20 @@ class MessageHandler {
   async handleMenuOption(to, option, messageId) {
     let response;
     const optionLower = option.toLowerCase().trim();
-    
-    switch (optionLower) {
-      case 'agendar - comprar':
+
+    switch (option) {
+      case 'agendar':
+        this.appointmentState[to] = { step: 'name' }
         response = "Por favor, ingresa tu nombre:";
         break;
       case 'consultar':
         response = "Realiza tu consulta";
-        break;
-      case 'ubicación':
-        response = 'Te esperamos en nuestra sucursal.';
-        break;
+        break
+      case 'ubicacion':
+        response = 'Esta es nuestra Ubicación';
+        break
+      default:
+        response = "Lo siento, no entendí tu selección, Por Favor, elige una de las opciones del menú."
       // case 'option_1':
       //   this.appointmentState[to] = { step: 'name' }
       //   response = "Por favor, ingresa tu nombre:";
@@ -124,15 +131,13 @@ class MessageHandler {
       //  response = 'Te esperamos en nuestra sucursal.';
       //  await this.sendLocation(to);
       //  break
-      default:
-        response = "Lo siento, no entendí tu selección, Por Favor, elige una de las opciones del menú."
     }
     await whatsappService.sendMessage(to, response, messageId);
   }
 
-   async sendMedia(to, mediaType) {
+  async sendMedia(to, mediaType) {
     const media = this.mediaFiles[mediaType];
-    
+
     if (!media) {
       await whatsappService.sendMessage(to, 'Tipo de media no encontrado');
       return;
@@ -142,6 +147,59 @@ class MessageHandler {
     await whatsappService.sendMediaMessage(to, media.type, media.url, media.caption);
   }
 
+  completeAppointment(to) {
+    const appointment = this.appointmentState[to];
+    delete this.appointmentState[to];
+
+    const userData = [
+      to,
+      appointment.name,
+      appointment.petName,
+      appointment.petType,
+      appointment.reason,
+      new Date().toISOString()
+    ]
+
+    appendToSheet(userData);
+
+    return `Gracias por agendar tu cita. 
+    Resumen de tu cita:
+    
+    Nombre: ${appointment.name}
+    Nombre de la mascota: ${appointment.petName}
+    Tipo de mascota: ${appointment.petType}
+    Motivo: ${appointment.reason}
+    
+    Nos pondremos en contacto contigo pronto para confirmar la fecha y hora de tu cita.`
+  }
+
+  async handleAppointmentFlow(to, message, messageId) {
+    const state = this.appointmentState[to];
+    let response;
+
+    switch (state.step) {
+      case 'name':
+        state.name = message;
+        state.step = 'petName';
+        response = "Gracias, Ahora, ¿Cuál es el nombre de tu Mascota?"
+        break;
+      case 'petName':
+        state.petName = message;
+        state.step = 'petType';
+        response = '¿Qué tipo de mascota es? (por ejemplo: perro, gato, huron, etc.)'
+        break;
+      case 'petType':
+        state.petType = message;
+        state.step = 'reason';
+        response = '¿Cuál es el motivo de la Consulta?';
+        break;
+      case 'reason':
+        state.reason = message;
+        response = 'Gracias por agendar tu cita.';
+        // response = this.completeAppointment(to);
+    }
+    await whatsappService.sendMessage(to, response, messageId);
+  }
   //   async sendWelcomeMenu(to) {
   //     try {
   //       const menuMessage = `
