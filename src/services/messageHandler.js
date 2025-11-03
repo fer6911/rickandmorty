@@ -160,7 +160,10 @@ class MessageHandler {
       new Date().toISOString()
     ]
 
-    appendToSheet(userData);
+    console.log(userData);
+    
+
+    // appendToSheet(userData);
 
     return `Gracias por agendar tu cita. 
     Resumen de tu cita:
@@ -195,8 +198,7 @@ class MessageHandler {
         break;
       case 'reason':
         state.reason = message;
-        response = 'Gracias por agendar tu cita.';
-        // response = this.completeAppointment(to);
+        response = this.completeAppointment(to);
     }
     await whatsappService.sendMessage(to, response, messageId);
   }
