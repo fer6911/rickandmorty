@@ -6,6 +6,7 @@ class MessageHandler {
   constructor() {
     this.appointmentState = {};
     this.assistandState = {};
+    this.emergencyState = {};
   }
 
   async handleIncomingMessage(message, senderInfo) {
@@ -38,31 +39,35 @@ class MessageHandler {
 
 
         // Verificar si es un saludo inicial
-      if (this.isGreeting(incomingMessage)) {
-        await this.sendWelcomeMessage(userId, message.id, senderInfo);
-        await this.sendWelcomeMenu(message.from);
-      }
-      // Verificar si el mensaje es un tipo de media
-      else if (this.mediaFiles[incomingMessage]) {
-        await this.sendMedia(userId, incomingMessage);
-      }
-      // Flujo de citas - PASAR message.id AQUÍ
-      else if (this.appointmentState[message.from]) {
-        await this.handleAppointmentFlow(message.from, incomingMessage, message.id);
-      }
-      //ChatGPT
-      else if (this.assistandState[message.from]) {
-        await this.handleAssistandFlow(message.from, incomingMessage,message.id);
-      }
-      // Respuesta por defecto
-      else {
-        const response = `Echo: ${message.text.body}`;
-        await whatsappService.sendMessage(userId, response, message.id);
-      }
+        if (this.isGreeting(incomingMessage)) {
+          await this.sendWelcomeMessage(userId, message.id, senderInfo);
+          await this.sendWelcomeMenu(message.from);
+        }
+        // Verificar si el mensaje es un tipo de media
+        else if (this.mediaFiles[incomingMessage]) {
+          await this.sendMedia(userId, incomingMessage);
+        }
+        // Flujo de citas - PASAR message.id AQUÍ
+        else if (this.appointmentState[message.from]) {
+          await this.handleAppointmentFlow(message.from, incomingMessage, message.id);
+        }
+        //ChatGPT
+        else if (this.assistandState[message.from]) {
+          await this.handleAssistandFlow(message.from, incomingMessage, message.id);
+        }
+        //contacto de emergencia
+        else if (this.emergencyState[message.from]) {
+          await whatsappService.sendMessage(to, response, message.id);
+        }
+        // Respuesta por defecto
+        else {
+          const response = `Echo: ${message.text.body}`;
+          await whatsappService.sendMessage(userId, response, message.id);
+        }
 
         await whatsappService.markAsRead(message.id);
       } else if (message?.type === 'interactive') {
-        const option = message?.interactive?.button_reply?.title.toLowerCase().trim();
+        const option = message?.interactive?.button_reply?.id
         await this.handleMenuOption(message.from, option, message.id);
         await whatsappService.markAsRead(message.id);
       }
@@ -100,10 +105,7 @@ class MessageHandler {
       },
       {
         type: 'reply', reply: { id: 'option_3', title: 'Ubicación' }
-      },
-      // {
-      //   type: 'reply', reply: { id: 'option_3', title: 'Ubicación' }
-      // }
+      }
     ];
 
     await whatsappService.sendInteractiveButtons(to, menuMessage, buttons);
@@ -112,35 +114,27 @@ class MessageHandler {
 
   async handleMenuOption(to, option, messageId) {
     let response;
-    const optionLower = option.toLowerCase().trim();
 
     switch (option) {
-      case 'agendar':
+      case 'option_1':
         this.appointmentState[to] = { step: 'name' }
         response = "Por favor, ingresa tu nombre:";
         break;
-      case 'consultar':
+      case 'option_2':
         this.assistandState[to] = { step: 'question' };
         response = "Realiza tu consulta";
         break
-      case 'ubicacion':
+      case 'option_3':
         response = 'Esta es nuestra Ubicación';
-        // await this.sendLocation(to);
+        await this.sendLocation(to);
         break
+      case 'option_6':
+        response = "Si esto es una emergencia, te invitamos a llamar a nuestra linea de atención"
+        this.emergencyState[to] = { step: 'contact' }
+        await this.sendContact(to);
+        break;
       default:
         response = "Lo siento, no entendí tu selección, Por Favor, elige una de las opciones del menú."
-      // case 'option_1':
-      //   this.appointmentState[to] = { step: 'name' }
-      //   response = "Por favor, ingresa tu nombre:";
-      //   break;
-      // case 'option_2':
-      //   this.assistandState[to] = { step: 'question' };
-      //   response = "Realiza tu consulta";
-      //   break
-      // case 'option_3': 
-      //  response = 'Te esperamos en nuestra sucursal.';
-      //  await this.sendLocation(to);
-      //  break
     }
     await whatsappService.sendMessage(to, response, messageId);
   }
@@ -209,15 +203,15 @@ class MessageHandler {
     await whatsappService.sendMessage(to, response, messageId);
   }
 
-    async handleAssistandFlow(to, message,messageId) {
+  async handleAssistandFlow(to, message, messageId) {
     const state = this.assistandState[to];
     let response;
 
     const menuMessage = "¿La respuesta fue de tu ayuda?"
     const buttons = [
       { type: 'reply', reply: { id: 'option_4', title: "Si, Gracias" } },
-      { type: 'reply', reply: { id: 'option_5', title: 'Hacer otra pregunta'}},
-      { type: 'reply', reply: { id: 'option_6', title: 'Emergencia'}}
+      { type: 'reply', reply: { id: 'option_5', title: 'Hacer otra pregunta' } },
+      { type: 'reply', reply: { id: 'option_6', title: 'Emergencia' } }
     ];
 
     if (state.step === 'question') {
@@ -225,9 +219,69 @@ class MessageHandler {
     }
 
     delete this.assistandState[to];
-    await whatsappService.sendMessage(to, response,messageId);
+    await whatsappService.sendMessage(to, response, messageId);
     await whatsappService.sendInteractiveButtons(to, menuMessage, buttons);
   }
+
+  async sendContact(to) {
+    const contact = {
+      addresses: [
+        {
+          street: "123 Calle de las Mascotas",
+          city: "Ciudad",
+          state: "Estado",
+          zip: "12345",
+          country: "País",
+          country_code: "PA",
+          type: "WORK"
+        }
+      ],
+      emails: [
+        {
+          email: "contacto@medpet.com",
+          type: "WORK"
+        }
+      ],
+      name: {
+        formatted_name: "MedPet Contacto",
+        first_name: "MedPet",
+        last_name: "Contacto",
+        middle_name: "",
+        suffix: "",
+        prefix: ""
+      },
+      org: {
+        company: "MedPet",
+        department: "Atención al Cliente",
+        title: "Representante"
+      },
+      phones: [
+        {
+          phone: "+1234567890",
+          wa_id: "1234567890",
+          type: "WORK"
+        }
+      ],
+      urls: [
+        {
+          url: "https://www.medpet.com",
+          type: "WORK"
+        }
+      ]
+    };
+
+    await whatsappService.sendContactMessage(to, contact);
+  }
+
+  async sendLocation(to) {
+    const latitude = 6.2071694;
+    const longitude = -75.574607;
+    const name = 'Platzi Medellín';
+    const address = 'Cra. 43A #5A - 113, El Poblado, Medellín, Antioquia.'
+
+    await whatsappService.sendLocationMessage(to, latitude, longitude, name, address);
+  }
+
   //   async sendWelcomeMenu(to) {
   //     try {
   //       const menuMessage = `

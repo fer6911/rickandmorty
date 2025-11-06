@@ -113,6 +113,50 @@ class WhatsAppService {
     });
     // await sendToWhatsApp(data);
   }
+
+  async sendContactMessage(to, contact) {
+    try {
+      await axios({
+        method: 'POST',
+        url: `https://graph.facebook.com/${config.API_VERSION}/${config.BUSINESS_PHONE}/messages`,
+        headers: {
+          Authorization: `Bearer ${config.API_TOKEN}`,
+        },
+        data: {
+          messaging_product: 'whatsapp',
+          to,
+          type: 'contacts',
+          type: "contacts",
+          contacts: [contact]
+        },
+      });
+    } catch (error) {
+      console.log(error);
+    }
+  }
+
+  async sendLocationMessage(to, latitude, longitude, name, address) {
+    await axios({
+      method: 'POST',
+      url: `https://graph.facebook.com/${config.API_VERSION}/${config.BUSINESS_PHONE}/messages`,
+      headers: {
+        Authorization: `Bearer ${config.API_TOKEN}`,
+      },
+      data: {
+        messaging_product: 'whatsapp',
+        to,
+        type: 'location',
+        location: {
+          latitude: latitude,
+          longitude: longitude,
+          name: name,
+          address: address
+        }
+      }
+    });
+
+    await sendToWhatsApp(data);
+  }
 }
 
 export default new WhatsAppService();
